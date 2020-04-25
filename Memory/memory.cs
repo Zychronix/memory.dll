@@ -1931,7 +1931,7 @@ namespace Memory
                        currentBaseAddress.ToUInt64() + (ulong)memInfo.RegionSize >
                        currentBaseAddress.ToUInt64())
                 {
-                    bool isValid = memInfo.State == MEM_COMMIT;
+                    /*bool isValid = memInfo.State == MEM_COMMIT;
                     isValid &= memInfo.BaseAddress.ToUInt64() < (ulong)proc_max_address.ToUInt64();
                     isValid &= ((memInfo.Protect & PAGE_GUARD) == 0);
                     isValid &= ((memInfo.Protect & PAGE_NOACCESS) == 0);
@@ -1962,7 +1962,7 @@ namespace Memory
                     {
                         currentBaseAddress = new UIntPtr(memInfo.BaseAddress.ToUInt64() + (ulong)memInfo.RegionSize);
                         continue;
-                    }
+                    }*/
 
                     MemoryRegionResult memRegion = new MemoryRegionResult
                     {
