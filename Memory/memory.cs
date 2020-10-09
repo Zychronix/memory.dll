@@ -13,13 +13,11 @@ using System.Security.Principal;
 using System.Threading.Tasks;
 using System.Collections.Concurrent;
 
-namespace Memory
-{
+namespace Memory {
     /// <summary>
     /// Memory.dll class. Full documentation at https://github.com/erfg12/memory.dll/wiki
     /// </summary>
-    public class Mem
-    {
+    public class Mem {
         #region DllImports
         [DllImport("kernel32.dll")]
         public static extern IntPtr OpenProcess(
@@ -42,21 +40,19 @@ namespace Memory
         static extern uint GetLastError();
 
         public UIntPtr VirtualQueryEx(IntPtr hProcess, UIntPtr lpAddress,
-            out MEMORY_BASIC_INFORMATION lpBuffer)
-        {
+            out MEMORY_BASIC_INFORMATION lpBuffer) {
             UIntPtr retVal;
 
             // TODO: Need to change this to only check once.
-            if (Is64Bit || IntPtr.Size == 8)
-            {
+            if (Is64Bit || IntPtr.Size == 8) {
                 // 64 bit
                 MEMORY_BASIC_INFORMATION64 tmp64 = new MEMORY_BASIC_INFORMATION64();
-                retVal = Native_VirtualQueryEx(hProcess, lpAddress, out tmp64, new UIntPtr((uint)Marshal.SizeOf(tmp64)));
+                retVal = Native_VirtualQueryEx(hProcess, lpAddress, out tmp64, new UIntPtr((uint) Marshal.SizeOf(tmp64)));
 
                 lpBuffer.BaseAddress = tmp64.BaseAddress;
                 lpBuffer.AllocationBase = tmp64.AllocationBase;
                 lpBuffer.AllocationProtect = tmp64.AllocationProtect;
-                lpBuffer.RegionSize = (long)tmp64.RegionSize;
+                lpBuffer.RegionSize = (long) tmp64.RegionSize;
                 lpBuffer.State = tmp64.State;
                 lpBuffer.Protect = tmp64.Protect;
                 lpBuffer.Type = tmp64.Type;
@@ -66,7 +62,7 @@ namespace Memory
 
             MEMORY_BASIC_INFORMATION32 tmp32 = new MEMORY_BASIC_INFORMATION32();
 
-            retVal = Native_VirtualQueryEx(hProcess, lpAddress, out tmp32, new UIntPtr((uint)Marshal.SizeOf(tmp32)));
+            retVal = Native_VirtualQueryEx(hProcess, lpAddress, out tmp32, new UIntPtr((uint) Marshal.SizeOf(tmp32)));
 
             lpBuffer.BaseAddress = tmp32.BaseAddress;
             lpBuffer.AllocationBase = tmp32.AllocationBase;
@@ -237,8 +233,7 @@ namespace Memory
         Dictionary<string, CancellationTokenSource> FreezeTokenSrcs = new Dictionary<string, CancellationTokenSource>();
         public Process theProc = null;
 
-        internal enum MINIDUMP_TYPE
-        {
+        internal enum MINIDUMP_TYPE {
             MiniDumpNormal = 0x00000000,
             MiniDumpWithDataSegs = 0x00000001,
             MiniDumpWithFullMemory = 0x00000002,
@@ -256,10 +251,8 @@ namespace Memory
             MiniDumpWithCodeSegs = 0x00002000
         }
 
-        bool IsDigitsOnly(string str)
-        {
-            foreach (char c in str)
-            {
+        bool IsDigitsOnly(string str) {
+            foreach (char c in str) {
                 if (c < '0' || c > '9')
                     return false;
             }
@@ -273,32 +266,24 @@ namespace Memory
         /// <param name="type">byte, 2bytes, bytes, float, int, string, double or long.</param>
         /// <param name="value">Value to freeze</param>
         /// <param name="file">ini file to read address from (OPTIONAL)</param>
-        public void FreezeValue(string address, string type, string value, string file = "")
-        {
+        public void FreezeValue(string address, string type, string value, string file = "") {
             CancellationTokenSource cts = new CancellationTokenSource();
-            
-            if (FreezeTokenSrcs.ContainsKey(address))
-            {
+
+            if (FreezeTokenSrcs.ContainsKey(address)) {
                 Debug.WriteLine("Changing Freezing Address " + address + " Value " + value);
-                try
-                {
+                try {
                     FreezeTokenSrcs[address].Cancel();
                     FreezeTokenSrcs.Remove(address);
-                }
-                catch
-                {
+                } catch {
                     Debug.WriteLine("ERROR: Avoided a crash. Address " + address + " was not frozen.");
                 }
-            }
-            else 
+            } else
                 Debug.WriteLine("Adding Freezing Address " + address + " Value " + value);
 
             FreezeTokenSrcs.Add(address, cts);
 
-            Task.Factory.StartNew(() =>
-            {
-                while (!cts.Token.IsCancellationRequested)
-                {
+            Task.Factory.StartNew(() => {
+                while (!cts.Token.IsCancellationRequested) {
                     WriteMemory(address, type, value, file);
                     Thread.Sleep(25);
                 }
@@ -310,16 +295,12 @@ namespace Memory
         /// Unfreeze a frozen value at an address
         /// </summary>
         /// <param name="address">address where frozen value is stored</param>
-        public void UnfreezeValue(string address)
-        {
+        public void UnfreezeValue(string address) {
             Debug.WriteLine("Un-Freezing Address " + address);
-            try
-            {
+            try {
                 FreezeTokenSrcs[address].Cancel();
                 FreezeTokenSrcs.Remove(address);
-            }
-            catch
-            {
+            } catch {
                 Debug.WriteLine("ERROR: Address " + address + " was not frozen.");
             }
         }
@@ -329,29 +310,24 @@ namespace Memory
         /// </summary>
         /// <param name="proc">Use process name or process ID here.</param>
         /// <returns></returns>
-        public bool OpenProcess(int pid)
-        {
-            if (!IsAdmin())
-            {
+        public bool OpenProcess(int pid) {
+            if (!IsAdmin()) {
                 Debug.WriteLine("WARNING: You are NOT running this program as admin! Visit https://github.com/erfg12/memory.dll/wiki/Administrative-Privileges");
                 MessageBox.Show("WARNING: You are NOT running this program as admin!");
             }
 
-            try
-            {
+            try {
                 if (theProc != null && theProc.Id == pid)
                     return true;
 
-                if (pid <= 0)
-                {
+                if (pid <= 0) {
                     Debug.WriteLine("ERROR: OpenProcess given proc ID 0.");
                     return false;
                 }
 
                 theProc = Process.GetProcessById(pid);
 
-                if (theProc != null && !theProc.Responding)
-                {
+                if (theProc != null && !theProc.Responding) {
                     Debug.WriteLine("ERROR: OpenProcess: Process is not responding or null.");
                     return false;
                 }
@@ -359,8 +335,7 @@ namespace Memory
                 pHandle = OpenProcess(0x1F0FFF, true, pid);
                 Process.EnterDebugMode();
 
-                if (pHandle == IntPtr.Zero)
-                {
+                if (pHandle == IntPtr.Zero) {
                     var eCode = Marshal.GetLastWin32Error();
                 }
 
@@ -374,21 +349,19 @@ namespace Memory
                 Debug.WriteLine("Program is operating at Administrative level. Process #" + theProc + " is open and modules are stored.");
 
                 return true;
-            }
-            catch {
+            } catch {
                 Debug.WriteLine("ERROR: OpenProcess has crashed. Are you trying to hack a x64 game? https://github.com/erfg12/memory.dll/wiki/64bit-Games");
                 return false;
             }
         }
 
-       
+
         /// <summary>
         /// Open the PC game process with all security and access rights.
         /// </summary>
         /// <param name="proc">Use process name or process ID here.</param>
         /// <returns></returns>
-        public bool OpenProcess(string proc)
-        {
+        public bool OpenProcess(string proc) {
             return OpenProcess(GetProcIdFromName(proc));
         }
 
@@ -396,10 +369,8 @@ namespace Memory
         /// Check if program is running with administrative privileges. Read about it here: https://github.com/erfg12/memory.dll/wiki/Administrative-Privileges
         /// </summary>
         /// <returns></returns>
-        public bool IsAdmin()
-        {
-            using (WindowsIdentity identity = WindowsIdentity.GetCurrent())
-            {
+        public bool IsAdmin() {
+            using (WindowsIdentity identity = WindowsIdentity.GetCurrent()) {
                 WindowsPrincipal principal = new WindowsPrincipal(identity);
                 return principal.IsInRole(WindowsBuiltInRole.Administrator);
             }
@@ -410,8 +381,7 @@ namespace Memory
         /// </summary>
         /// <returns>True if 64bit false if 32bit.</returns>
         private bool _is64Bit;
-        public bool Is64Bit
-        {
+        public bool Is64Bit {
             get { return _is64Bit; }
             private set { _is64Bit = value; }
         }
@@ -420,21 +390,18 @@ namespace Memory
         /// <summary>
         /// Builds the process modules dictionary (names with addresses).
         /// </summary>
-        public void GetModules()
-        {
+        public void GetModules() {
             if (theProc == null)
                 return;
 
             modules.Clear();
-            foreach (ProcessModule Module in theProc.Modules)
-            {
+            foreach (ProcessModule Module in theProc.Modules) {
                 if (!string.IsNullOrEmpty(Module.ModuleName) && !modules.ContainsKey(Module.ModuleName))
                     modules.Add(Module.ModuleName, Module.BaseAddress);
             }
         }
 
-        public void SetFocus()
-        {
+        public void SetFocus() {
             //int style = GetWindowLong(procs.MainWindowHandle, -16);
             //if ((style & 0x20000000) == 0x20000000) //minimized
             //    SendMessage(procs.Handle, 0x0112, (IntPtr)0xF120, IntPtr.Zero);
@@ -455,8 +422,7 @@ namespace Memory
             if (name.ToLower().Contains(".bin")) // test
                 name = name.Replace(".bin", "");
 
-            foreach (Process theprocess in processlist)
-            {
+            foreach (Process theprocess in processlist) {
                 if (theprocess.ProcessName.Equals(name, StringComparison.CurrentCultureIgnoreCase)) //find (name).exe in the process list (use task manager to find the name)
                     return theprocess.Id;
             }
@@ -472,30 +438,26 @@ namespace Memory
         /// <param name="name">label for address or code</param>
         /// <param name="file">path and name of ini file</param>
         /// <returns></returns>
-        public string LoadCode(string name, string file)
-        {
+        public string LoadCode(string name, string file) {
             StringBuilder returnCode = new StringBuilder(1024);
             uint read_ini_result;
 
             if (file != "")
-                read_ini_result = GetPrivateProfileString("codes", name, "", returnCode, (uint)returnCode.Capacity, file);
+                read_ini_result = GetPrivateProfileString("codes", name, "", returnCode, (uint) returnCode.Capacity, file);
             else
                 returnCode.Append(name);
 
             return returnCode.ToString();
         }
 
-        private int LoadIntCode(string name, string path)
-        {
-            try
-            {
+        private int LoadIntCode(string name, string path) {
+            try {
                 int intValue = Convert.ToInt32(LoadCode(name, path), 16);
                 if (intValue >= 0)
                     return intValue;
                 else
                     return 0;
-            } catch
-            {
+            } catch {
                 Debug.WriteLine("ERROR: LoadIntCode function crashed!");
                 return 0;
             }
@@ -511,17 +473,14 @@ namespace Memory
         /// </summary>
         /// <param name="func">remote function to call</param>
         /// <param name="name">name of the thread</param>
-        public void ThreadStartClient(string func, string name)
-        {
+        public void ThreadStartClient(string func, string name) {
             //ManualResetEvent SyncClientServer = (ManualResetEvent)obj;
-            using (NamedPipeClientStream pipeStream = new NamedPipeClientStream(name))
-            {
+            using (NamedPipeClientStream pipeStream = new NamedPipeClientStream(name)) {
                 if (!pipeStream.IsConnected)
                     pipeStream.Connect();
 
                 //MessageBox.Show("[Client] Pipe connection established");
-                using (StreamWriter sw = new StreamWriter(pipeStream))
-                {
+                using (StreamWriter sw = new StreamWriter(pipeStream)) {
                     if (!sw.AutoFlush)
                         sw.AutoFlush = true;
                     sw.WriteLine(func);
@@ -536,11 +495,9 @@ namespace Memory
         /// </summary>
         /// <param name="str">The string you want to cut.</param>
         /// <returns></returns>
-        public string CutString(string str)
-        {
+        public string CutString(string str) {
             StringBuilder sb = new StringBuilder();
-            foreach (char c in str)
-            {
+            foreach (char c in str) {
                 if (c >= ' ' && c <= '~')
                     sb.Append(c);
                 else
@@ -554,11 +511,9 @@ namespace Memory
         /// </summary>
         /// <param name="str">The string you want to sanitize.</param>
         /// <returns></returns>
-        public string SanitizeString(string str)
-        {
+        public string SanitizeString(string str) {
             StringBuilder sb = new StringBuilder();
-            foreach (char c in str)
-            {
+            foreach (char c in str) {
                 if (c >= ' ' && c <= '~')
                     sb.Append(c);
             }
@@ -573,12 +528,11 @@ namespace Memory
         /// <param name="length">The maximum bytes to read.</param>
         /// <param name="file">path and name of ini file.</param>
         /// <returns>The bytes read or null</returns>
-        public byte[] ReadBytes(string code, long length, string file = "")
-        {
+        public byte[] ReadBytes(string code, long length, string file = "") {
             byte[] memory = new byte[length];
             UIntPtr theCode = GetCode(code, file);
 
-            if (!ReadProcessMemory(pHandle, theCode, memory, (UIntPtr)length, IntPtr.Zero))
+            if (!ReadProcessMemory(pHandle, theCode, memory, (UIntPtr) length, IntPtr.Zero))
                 return null;
 
             return memory;
@@ -591,27 +545,21 @@ namespace Memory
         /// <param name="file">path and name of ini file. (OPTIONAL)</param>
         /// <param name="round">Round the value to 2 decimal places</param>
         /// <returns></returns>
-        public float ReadFloat(string code, string file = "", bool round = true)
-        {
+        public float ReadFloat(string code, string file = "", bool round = true) {
             byte[] memory = new byte[4];
 
             UIntPtr theCode;
             theCode = GetCode(code, file);
-            try
-            {
-                if (ReadProcessMemory(pHandle, theCode, memory, (UIntPtr)4, IntPtr.Zero))
-                {
+            try {
+                if (ReadProcessMemory(pHandle, theCode, memory, (UIntPtr) 4, IntPtr.Zero)) {
                     float address = BitConverter.ToSingle(memory, 0);
-                    float returnValue = (float)address;
+                    float returnValue = (float) address;
                     if (round)
-                        returnValue = (float)Math.Round(address, 2);
+                        returnValue = (float) Math.Round(address, 2);
                     return returnValue;
-                }
-                else
+                } else
                     return 0;
-            }
-            catch
-            {
+            } catch {
                 return 0;
             }
         }
@@ -624,12 +572,11 @@ namespace Memory
         /// <param name="length">length of bytes to read (OPTIONAL)</param>
         /// <param name="zeroTerminated">terminate string at null char</param>
         /// <returns></returns>
-        public string ReadString(string code, string file = "", int length = 32, bool zeroTerminated = true)
-        {
+        public string ReadString(string code, string file = "", int length = 32, bool zeroTerminated = true) {
             byte[] memoryNormal = new byte[length];
             UIntPtr theCode;
             theCode = GetCode(code, file);
-            if (ReadProcessMemory(pHandle, theCode, memoryNormal, (UIntPtr)length, IntPtr.Zero))
+            if (ReadProcessMemory(pHandle, theCode, memoryNormal, (UIntPtr) length, IntPtr.Zero))
                 return (zeroTerminated) ? Encoding.UTF8.GetString(memoryNormal).Split('\0')[0] : Encoding.UTF8.GetString(memoryNormal);
             else
                 return "";
@@ -642,35 +589,28 @@ namespace Memory
         /// <param name="file">path and name of ini file. (OPTIONAL)</param>
         /// <param name="round">Round the value to 2 decimal places</param>
         /// <returns></returns>
-        public double ReadDouble(string code, string file = "", bool round = true)
-        {
+        public double ReadDouble(string code, string file = "", bool round = true) {
             byte[] memory = new byte[8];
 
             UIntPtr theCode;
             theCode = GetCode(code, file);
-            try
-            {
-                if (ReadProcessMemory(pHandle, theCode, memory, (UIntPtr)8, IntPtr.Zero))
-                {
+            try {
+                if (ReadProcessMemory(pHandle, theCode, memory, (UIntPtr) 8, IntPtr.Zero)) {
                     double address = BitConverter.ToDouble(memory, 0);
-                    double returnValue = (double)address;
+                    double returnValue = (double) address;
                     if (round)
-                        returnValue = (double)Math.Round(address, 2);
+                        returnValue = (double) Math.Round(address, 2);
                     return returnValue;
-                }
-                else
+                } else
                     return 0;
-            }
-            catch
-            {
+            } catch {
                 return 0;
             }
         }
 
-        public int ReadUIntPtr(UIntPtr code)
-        {
+        public int ReadUIntPtr(UIntPtr code) {
             byte[] memory = new byte[4];
-            if (ReadProcessMemory(pHandle, code, memory, (UIntPtr)4, IntPtr.Zero))
+            if (ReadProcessMemory(pHandle, code, memory, (UIntPtr) 4, IntPtr.Zero))
                 return BitConverter.ToInt32(memory, 0);
             else
                 return 0;
@@ -682,12 +622,11 @@ namespace Memory
         /// <param name="code">address, module + pointer + offset, module + offset OR label in .ini file.</param>
         /// <param name="file">path and name of ini file. (OPTIONAL)</param>
         /// <returns></returns>
-        public int ReadInt(string code, string file = "")
-        {
+        public int ReadInt(string code, string file = "") {
             byte[] memory = new byte[4];
             UIntPtr theCode;
             theCode = GetCode(code, file);
-            if (ReadProcessMemory(pHandle, theCode, memory, (UIntPtr)4, IntPtr.Zero))
+            if (ReadProcessMemory(pHandle, theCode, memory, (UIntPtr) 4, IntPtr.Zero))
                 return BitConverter.ToInt32(memory, 0);
             else
                 return 0;
@@ -699,14 +638,13 @@ namespace Memory
         /// <param name="code">address, module + pointer + offset, module + offset OR label in .ini file.</param>
         /// <param name="file">path and name of ini file. (OPTIONAL)</param>
         /// <returns></returns>
-        public long ReadLong(string code, string file = "")
-        {
+        public long ReadLong(string code, string file = "") {
             byte[] memory = new byte[16];
             UIntPtr theCode;
 
             theCode = GetCode(code, file);
 
-            if (ReadProcessMemory(pHandle, theCode, memory, (UIntPtr)16, IntPtr.Zero))
+            if (ReadProcessMemory(pHandle, theCode, memory, (UIntPtr) 16, IntPtr.Zero))
                 return BitConverter.ToInt64(memory, 0);
             else
                 return 0;
@@ -718,13 +656,12 @@ namespace Memory
         /// <param name="code">address, module + pointer + offset, module + offset OR label in .ini file.</param>
         /// <param name="file">path and name of ini file. (OPTIONAL)</param>
         /// <returns></returns>
-        public UInt64 ReadUInt(string code, string file = "")
-        {
+        public UInt64 ReadUInt(string code, string file = "") {
             byte[] memory = new byte[4];
             UIntPtr theCode;
             theCode = GetCode(code, file);
 
-            if (ReadProcessMemory(pHandle, theCode, memory, (UIntPtr)4, IntPtr.Zero))
+            if (ReadProcessMemory(pHandle, theCode, memory, (UIntPtr) 4, IntPtr.Zero))
                 return BitConverter.ToUInt64(memory, 0);
             else
                 return 0;
@@ -737,15 +674,14 @@ namespace Memory
         /// <param name="moveQty">Quantity to move.</param>
         /// <param name="file">path and name of ini file (OPTIONAL)</param>
         /// <returns></returns>
-        public int Read2ByteMove(string code, int moveQty, string file = "")
-        {
+        public int Read2ByteMove(string code, int moveQty, string file = "") {
             byte[] memory = new byte[4];
             UIntPtr theCode;
             theCode = GetCode(code, file);
 
             UIntPtr newCode = UIntPtr.Add(theCode, moveQty);
 
-            if (ReadProcessMemory(pHandle, newCode, memory, (UIntPtr)2, IntPtr.Zero))
+            if (ReadProcessMemory(pHandle, newCode, memory, (UIntPtr) 2, IntPtr.Zero))
                 return BitConverter.ToInt32(memory, 0);
             else
                 return 0;
@@ -758,15 +694,14 @@ namespace Memory
         /// <param name="moveQty">Quantity to move.</param>
         /// <param name="file">path and name of ini file (OPTIONAL)</param>
         /// <returns></returns>
-        public int ReadIntMove(string code, int moveQty, string file = "")
-        {
+        public int ReadIntMove(string code, int moveQty, string file = "") {
             byte[] memory = new byte[4];
             UIntPtr theCode;
             theCode = GetCode(code, file);
 
             UIntPtr newCode = UIntPtr.Add(theCode, moveQty);
 
-            if (ReadProcessMemory(pHandle, newCode, memory, (UIntPtr)4, IntPtr.Zero))
+            if (ReadProcessMemory(pHandle, newCode, memory, (UIntPtr) 4, IntPtr.Zero))
                 return BitConverter.ToInt32(memory, 0);
             else
                 return 0;
@@ -779,15 +714,14 @@ namespace Memory
         /// <param name="moveQty">Quantity to move.</param>
         /// <param name="file">path and name of ini file (OPTIONAL)</param>
         /// <returns></returns>
-        public ulong ReadUIntMove(string code, int moveQty, string file = "")
-        {
+        public ulong ReadUIntMove(string code, int moveQty, string file = "") {
             byte[] memory = new byte[8];
             UIntPtr theCode;
             theCode = GetCode(code, file, 8);
 
             UIntPtr newCode = UIntPtr.Add(theCode, moveQty);
 
-            if (ReadProcessMemory(pHandle, newCode, memory, (UIntPtr)8, IntPtr.Zero))
+            if (ReadProcessMemory(pHandle, newCode, memory, (UIntPtr) 8, IntPtr.Zero))
                 return BitConverter.ToUInt64(memory, 0);
             else
                 return 0;
@@ -799,14 +733,13 @@ namespace Memory
         /// <param name="code">address, module + pointer + offset, module + offset OR label in .ini file.</param>
         /// <param name="file">path and file name to ini file. (OPTIONAL)</param>
         /// <returns></returns>
-        public int Read2Byte(string code, string file = "")
-        {
+        public int Read2Byte(string code, string file = "") {
             byte[] memoryTiny = new byte[4];
 
             UIntPtr theCode;
             theCode = GetCode(code, file);
 
-            if (ReadProcessMemory(pHandle, theCode, memoryTiny, (UIntPtr)2, IntPtr.Zero))
+            if (ReadProcessMemory(pHandle, theCode, memoryTiny, (UIntPtr) 2, IntPtr.Zero))
                 return BitConverter.ToInt32(memoryTiny, 0);
             else
                 return 0;
@@ -818,8 +751,7 @@ namespace Memory
         /// <param name="code">address, module + pointer + offset, module + offset OR label in .ini file.</param>
         /// <param name="file">path and file name of ini file. (OPTIONAL)</param>
         /// <returns></returns>
-        public int ReadByte(string code, string file = "")
-        {
+        public int ReadByte(string code, string file = "") {
             byte[] memoryTiny = new byte[1];
 
             UIntPtr theCode = GetCode(code, file);
@@ -836,8 +768,7 @@ namespace Memory
         /// <param name="code">address, module + pointer + offset, module + offset OR label in .ini file.</param>
         /// <param name="file">path and file name of ini file. (OPTIONAL)</param>
         /// <returns>Array of 8 booleans representing each bit of the byte read</returns>
-        public bool[] ReadBits(string code, string file = "")
-        {
+        public bool[] ReadBits(string code, string file = "") {
             byte[] buf = new byte[1];
 
             UIntPtr theCode = GetCode(code, file);
@@ -846,7 +777,7 @@ namespace Memory
 
             if (!ReadProcessMemory(pHandle, theCode, buf, (UIntPtr) 1, IntPtr.Zero))
                 return ret;
-            
+
 
             if (!BitConverter.IsLittleEndian)
                 throw new Exception("Should be little endian");
@@ -858,40 +789,34 @@ namespace Memory
 
         }
 
-        public int ReadPByte(UIntPtr address, string code, string file = "")
-        {
+        public int ReadPByte(UIntPtr address, string code, string file = "") {
             byte[] memory = new byte[4];
-            if (ReadProcessMemory(pHandle, address + LoadIntCode(code, file), memory, (UIntPtr)1, IntPtr.Zero))
+            if (ReadProcessMemory(pHandle, address + LoadIntCode(code, file), memory, (UIntPtr) 1, IntPtr.Zero))
                 return BitConverter.ToInt32(memory, 0);
             else
                 return 0;
         }
 
-        public float ReadPFloat(UIntPtr address, string code, string file = "")
-        {
+        public float ReadPFloat(UIntPtr address, string code, string file = "") {
             byte[] memory = new byte[4];
-            if (ReadProcessMemory(pHandle, address + LoadIntCode(code, file), memory, (UIntPtr)4, IntPtr.Zero))
-            {
+            if (ReadProcessMemory(pHandle, address + LoadIntCode(code, file), memory, (UIntPtr) 4, IntPtr.Zero)) {
                 float spawn = BitConverter.ToSingle(memory, 0);
-                return (float)Math.Round(spawn, 2);
-            }
-            else
+                return (float) Math.Round(spawn, 2);
+            } else
                 return 0;
         }
 
-        public int ReadPInt(UIntPtr address, string code, string file = "")
-        {
+        public int ReadPInt(UIntPtr address, string code, string file = "") {
             byte[] memory = new byte[4];
-            if (ReadProcessMemory(pHandle, address + LoadIntCode(code, file), memory, (UIntPtr)4, IntPtr.Zero))
+            if (ReadProcessMemory(pHandle, address + LoadIntCode(code, file), memory, (UIntPtr) 4, IntPtr.Zero))
                 return BitConverter.ToInt32(memory, 0);
             else
                 return 0;
         }
 
-        public string ReadPString(UIntPtr address, string code, string file = "")
-        {
+        public string ReadPString(UIntPtr address, string code, string file = "") {
             byte[] memoryNormal = new byte[32];
-            if (ReadProcessMemory(pHandle, address + LoadIntCode(code, file), memoryNormal, (UIntPtr)32, IntPtr.Zero))
+            if (ReadProcessMemory(pHandle, address + LoadIntCode(code, file), memoryNormal, (UIntPtr) 32, IntPtr.Zero))
                 return CutString(System.Text.Encoding.ASCII.GetString(memoryNormal));
             else
                 return "";
@@ -907,39 +832,29 @@ namespace Memory
         ///<param name="write">value to write to address.</param>
         ///<param name="file">path and name of .ini file (OPTIONAL)</param>
         ///<param name="stringEncoding">System.Text.Encoding.UTF8 (DEFAULT). Other options: ascii, unicode, utf32, utf7</param>
-        public bool WriteMemory(string code, string type, string write, string file = "", System.Text.Encoding stringEncoding = null)
-        {
+        public bool WriteMemory(string code, string type, string write, string file = "", System.Text.Encoding stringEncoding = null) {
             byte[] memory = new byte[4];
             int size = 4;
 
             UIntPtr theCode;
             theCode = GetCode(code, file);
 
-            if (type.ToLower() == "float")
-            {
+            if (type.ToLower() == "float") {
                 memory = BitConverter.GetBytes(Convert.ToSingle(write));
                 size = 4;
-            }
-            else if (type.ToLower() == "int")
-            {
+            } else if (type.ToLower() == "int") {
                 memory = BitConverter.GetBytes(Convert.ToInt32(write));
                 size = 4;
-            }
-            else if (type.ToLower() == "byte")
-            {
+            } else if (type.ToLower() == "byte") {
                 memory = new byte[1];
                 memory[0] = Convert.ToByte(write, 16);
                 size = 1;
-            }
-            else if (type.ToLower() == "2bytes")
-            {
+            } else if (type.ToLower() == "2bytes") {
                 memory = new byte[2];
-                memory[0] = (byte)(Convert.ToInt32(write) % 256);
-                memory[1] = (byte)(Convert.ToInt32(write) / 256);
+                memory[0] = (byte) (Convert.ToInt32(write) % 256);
+                memory[1] = (byte) (Convert.ToInt32(write) / 256);
                 size = 2;
-            }
-            else if (type.ToLower() == "bytes")
-            {
+            } else if (type.ToLower() == "bytes") {
                 if (write.Contains(",") || write.Contains(" ")) //check if it's a proper array
                 {
                     string[] stringBytes;
@@ -951,31 +866,23 @@ namespace Memory
 
                     int c = stringBytes.Count();
                     memory = new byte[c];
-                    for (int i = 0; i < c; i++)
-                    {
+                    for (int i = 0; i < c; i++) {
                         memory[i] = Convert.ToByte(stringBytes[i], 16);
                     }
                     size = stringBytes.Count();
-                }
-                else //wasnt array, only 1 byte
-                {
+                } else //wasnt array, only 1 byte
+                  {
                     memory = new byte[1];
                     memory[0] = Convert.ToByte(write, 16);
                     size = 1;
                 }
-            }
-            else if (type.ToLower() == "double")
-            {
+            } else if (type.ToLower() == "double") {
                 memory = BitConverter.GetBytes(Convert.ToDouble(write));
                 size = 8;
-            }
-            else if (type.ToLower() == "long")
-            {
+            } else if (type.ToLower() == "long") {
                 memory = BitConverter.GetBytes(Convert.ToInt64(write));
                 size = 8;
-            }
-            else if (type.ToLower() == "string")
-            {
+            } else if (type.ToLower() == "string") {
                 if (stringEncoding == null)
                     memory = System.Text.Encoding.UTF8.GetBytes(write);
                 else
@@ -983,7 +890,7 @@ namespace Memory
                 size = memory.Length;
             }
             //Debug.Write("DEBUG: Writing bytes [TYPE:" + type + " ADDR:" + theCode + "] " + String.Join(",", memory) + Environment.NewLine);
-            return WriteProcessMemory(pHandle, theCode, memory, (UIntPtr)size, IntPtr.Zero);
+            return WriteProcessMemory(pHandle, theCode, memory, (UIntPtr) size, IntPtr.Zero);
         }
 
         /// <summary>
@@ -995,43 +902,31 @@ namespace Memory
         /// <param name="moveQty">quantity to move</param>
         /// <param name="file">path and name of .ini file (OPTIONAL)</param>
         /// <returns></returns>
-        public bool WriteMove(string code, string type, string write, int moveQty, string file = "")
-        {
+        public bool WriteMove(string code, string type, string write, int moveQty, string file = "") {
             byte[] memory = new byte[4];
             int size = 4;
 
             UIntPtr theCode;
             theCode = GetCode(code, file);
 
-            if (type == "float")
-            {
+            if (type == "float") {
                 memory = new byte[write.Length];
                 memory = BitConverter.GetBytes(Convert.ToSingle(write));
                 size = write.Length;
-            }
-            else if (type == "int")
-            {
+            } else if (type == "int") {
                 memory = BitConverter.GetBytes(Convert.ToInt32(write));
                 size = 4;
-            }
-            else if (type == "double")
-            {
+            } else if (type == "double") {
                 memory = BitConverter.GetBytes(Convert.ToDouble(write));
                 size = 8;
-            }
-            else if (type == "long")
-            {
+            } else if (type == "long") {
                 memory = BitConverter.GetBytes(Convert.ToInt64(write));
                 size = 8;
-            }
-            else if (type == "byte")
-            {
+            } else if (type == "byte") {
                 memory = new byte[1];
                 memory[0] = Convert.ToByte(write, 16);
                 size = 1;
-            }
-            else if (type == "string")
-            {
+            } else if (type == "string") {
                 memory = new byte[write.Length];
                 memory = System.Text.Encoding.UTF8.GetBytes(write);
                 size = write.Length;
@@ -1041,7 +936,7 @@ namespace Memory
 
             Debug.Write("DEBUG: Writing bytes [TYPE:" + type + " ADDR:[O]" + theCode + " [N]" + newCode + " MQTY:" + moveQty + "] " + String.Join(",", memory) + Environment.NewLine);
             Thread.Sleep(1000);
-            return WriteProcessMemory(pHandle, newCode, memory, (UIntPtr)size, IntPtr.Zero);
+            return WriteProcessMemory(pHandle, newCode, memory, (UIntPtr) size, IntPtr.Zero);
         }
 
         /// <summary>
@@ -1050,11 +945,10 @@ namespace Memory
         /// <param name="code">address to write to</param>
         /// <param name="write">byte array to write</param>
         /// <param name="file">path and name of ini file. (OPTIONAL)</param>
-        public void WriteBytes(string code, byte[] write, string file = "")
-        {
+        public void WriteBytes(string code, byte[] write, string file = "") {
             UIntPtr theCode;
             theCode = GetCode(code, file);
-            WriteProcessMemory(pHandle, theCode, write, (UIntPtr)write.Length, IntPtr.Zero);
+            WriteProcessMemory(pHandle, theCode, write, (UIntPtr) write.Length, IntPtr.Zero);
         }
 
         /// <summary>
@@ -1063,19 +957,17 @@ namespace Memory
         /// <param name="code">address to write to</param>
         /// <param name="bits">Array of 8 booleans to write</param>
         /// <param name="file">path and name of ini file. (OPTIONAL)</param>
-        public void WriteBits(string code, bool[] bits, string file = "")
-        {
-            if(bits.Length != 8)
+        public void WriteBits(string code, bool[] bits, string file = "") {
+            if (bits.Length != 8)
                 throw new ArgumentException("Not enough bits for a whole byte", nameof(bits));
 
             byte[] buf = new byte[1];
 
             UIntPtr theCode = GetCode(code, file);
 
-            for (var i = 0; i < 8; i++)
-            {
+            for (var i = 0; i < 8; i++) {
                 if (bits[i])
-                    buf[0] |= (byte)(1 << i);
+                    buf[0] |= (byte) (1 << i);
             }
 
             WriteProcessMemory(pHandle, theCode, buf, (UIntPtr) 1, IntPtr.Zero);
@@ -1086,9 +978,8 @@ namespace Memory
         /// </summary>
         /// <param name="address">Address to write to</param>
         /// <param name="write">Byte array to write to</param>
-        public void WriteBytes(UIntPtr address, byte[] write)
-        {
-            WriteProcessMemory(pHandle, address, write, (UIntPtr)write.Length, out IntPtr bytesRead);
+        public void WriteBytes(UIntPtr address, byte[] write) {
+            WriteProcessMemory(pHandle, address, write, (UIntPtr) write.Length, out IntPtr bytesRead);
         }
 
         #endregion
@@ -1100,11 +991,9 @@ namespace Memory
         /// <param name="path">path to ini file (OPTIONAL)</param>
         /// <param name="size">size of address (default is 8)</param>
         /// <returns></returns>
-        public UIntPtr GetCode(string name, string path = "", int size = 8)
-        {
+        public UIntPtr GetCode(string name, string path = "", int size = 8) {
             string theCode = "";
-            if (Is64Bit)
-            {
+            if (Is64Bit) {
                 //Debug.WriteLine("Changing to 64bit code...");
                 if (size == 8) size = 16; //change to 64bit
                 return Get64BitCode(name, path, size); //jump over to 64bit code grab
@@ -1115,13 +1004,10 @@ namespace Memory
             else
                 theCode = name;
 
-            if (theCode == "")
-            {
+            if (theCode == "") {
                 //Debug.WriteLine("ERROR: LoadCode returned blank. NAME:" + name + " PATH:" + path);
                 return UIntPtr.Zero;
-            }
-            else
-            {
+            } else {
                 //Debug.WriteLine("Found code=" + theCode + " NAME:" + name + " PATH:" + path);
             }
 
@@ -1138,20 +1024,17 @@ namespace Memory
 
             byte[] memoryAddress = new byte[size];
 
-            if (newOffsets.Contains(','))
-            {
+            if (newOffsets.Contains(',')) {
                 List<int> offsetsList = new List<int>();
 
                 string[] newerOffsets = newOffsets.Split(',');
-                foreach (string oldOffsets in newerOffsets)
-                {
+                foreach (string oldOffsets in newerOffsets) {
                     string test = oldOffsets;
-                    if (oldOffsets.Contains("0x")) test = oldOffsets.Replace("0x","");
+                    if (oldOffsets.Contains("0x")) test = oldOffsets.Replace("0x", "");
                     int preParse = 0;
                     if (!oldOffsets.Contains("-"))
                         preParse = Int32.Parse(test, NumberStyles.AllowHexSpecifier);
-                    else
-                    {
+                    else {
                         test = test.Replace("-", "");
                         preParse = Int32.Parse(test, NumberStyles.AllowHexSpecifier);
                         preParse = preParse * -1;
@@ -1161,78 +1044,60 @@ namespace Memory
                 int[] offsets = offsetsList.ToArray();
 
                 if (theCode.Contains("base") || theCode.Contains("main"))
-                    ReadProcessMemory(pHandle, (UIntPtr)((int)mainModule.BaseAddress + offsets[0]), memoryAddress, (UIntPtr)size, IntPtr.Zero);
-                else if (!theCode.Contains("base") && !theCode.Contains("main") && theCode.Contains("+"))
-                {
+                    ReadProcessMemory(pHandle, (UIntPtr) ((int) mainModule.BaseAddress + offsets[0]), memoryAddress, (UIntPtr) size, IntPtr.Zero);
+                else if (!theCode.Contains("base") && !theCode.Contains("main") && theCode.Contains("+")) {
                     string[] moduleName = theCode.Split('+');
                     IntPtr altModule = IntPtr.Zero;
-                    if (!moduleName[0].ToLower().Contains(".dll") && !moduleName[0].ToLower().Contains(".exe") && !moduleName[0].ToLower().Contains(".bin"))
-                    {
+                    if (!moduleName[0].ToLower().Contains(".dll") && !moduleName[0].ToLower().Contains(".exe") && !moduleName[0].ToLower().Contains(".bin")) {
                         string theAddr = moduleName[0];
                         if (theAddr.Contains("0x")) theAddr = theAddr.Replace("0x", "");
-                        altModule = (IntPtr)Int32.Parse(theAddr, NumberStyles.HexNumber);
-                    }
-                    else
-                    {
-                        try
-                        {
+                        altModule = (IntPtr) Int32.Parse(theAddr, NumberStyles.HexNumber);
+                    } else {
+                        try {
                             altModule = modules[moduleName[0]];
-                        }
-                        catch
-                        {
+                        } catch {
                             Debug.WriteLine("Module " + moduleName[0] + " was not found in module list!");
                             Debug.WriteLine("Modules: " + string.Join(",", modules));
                         }
                     }
-                    ReadProcessMemory(pHandle, (UIntPtr)((int)altModule + offsets[0]), memoryAddress, (UIntPtr)size, IntPtr.Zero);
-                }
-                else
-                    ReadProcessMemory(pHandle, (UIntPtr)(offsets[0]), memoryAddress, (UIntPtr)size, IntPtr.Zero);
+                    ReadProcessMemory(pHandle, (UIntPtr) ((int) altModule + offsets[0]), memoryAddress, (UIntPtr) size, IntPtr.Zero);
+                } else
+                    ReadProcessMemory(pHandle, (UIntPtr) (offsets[0]), memoryAddress, (UIntPtr) size, IntPtr.Zero);
 
                 uint num1 = BitConverter.ToUInt32(memoryAddress, 0); //ToUInt64 causes arithmetic overflow.
 
-                UIntPtr base1 = (UIntPtr)0;
+                UIntPtr base1 = (UIntPtr) 0;
 
-                for (int i = 1; i < offsets.Length; i++)
-                {
+                for (int i = 1; i < offsets.Length; i++) {
                     base1 = new UIntPtr(Convert.ToUInt32(num1 + offsets[i]));
-                    ReadProcessMemory(pHandle, base1, memoryAddress, (UIntPtr)size, IntPtr.Zero);
+                    ReadProcessMemory(pHandle, base1, memoryAddress, (UIntPtr) size, IntPtr.Zero);
                     num1 = BitConverter.ToUInt32(memoryAddress, 0); //ToUInt64 causes arithmetic overflow.
                 }
                 return base1;
-            }
-            else // no offsets
-            {
+            } else // no offsets
+              {
                 int trueCode = Convert.ToInt32(newOffsets, 16);
                 IntPtr altModule = IntPtr.Zero;
                 //Debug.WriteLine("newOffsets=" + newOffsets);
                 if (theCode.ToLower().Contains("base") || theCode.ToLower().Contains("main"))
                     altModule = mainModule.BaseAddress;
-                else if (!theCode.ToLower().Contains("base") && !theCode.ToLower().Contains("main") && theCode.Contains("+"))
-                {
+                else if (!theCode.ToLower().Contains("base") && !theCode.ToLower().Contains("main") && theCode.Contains("+")) {
                     string[] moduleName = theCode.Split('+');
-                    if (!moduleName[0].ToLower().Contains(".dll") && !moduleName[0].ToLower().Contains(".exe") && !moduleName[0].ToLower().Contains(".bin"))
-                    {
+                    if (!moduleName[0].ToLower().Contains(".dll") && !moduleName[0].ToLower().Contains(".exe") && !moduleName[0].ToLower().Contains(".bin")) {
                         string theAddr = moduleName[0];
                         if (theAddr.Contains("0x")) theAddr = theAddr.Replace("0x", "");
-                        altModule = (IntPtr)Int32.Parse(theAddr, NumberStyles.HexNumber);
-                    }
-                    else
-                    {
-                        try
-                        {
+                        altModule = (IntPtr) Int32.Parse(theAddr, NumberStyles.HexNumber);
+                    } else {
+                        try {
                             altModule = modules[moduleName[0]];
-                        }
-                        catch
-                        {
+                        } catch {
                             Debug.WriteLine("Module " + moduleName[0] + " was not found in module list!");
                             Debug.WriteLine("Modules: " + string.Join(",", modules));
                         }
                     }
-                }
-                else
+                } else
                     altModule = modules[theCode.Split('+')[0]];
-                return (UIntPtr)((int)altModule + trueCode);
+                return (UIntPtr) ((int) altModule + trueCode);
             }
         }
 
@@ -1243,8 +1108,7 @@ namespace Memory
         /// <param name="path">path to ini file (OPTIONAL)</param>
         /// <param name="size">size of address (default is 16)</param>
         /// <returns></returns>
-        public UIntPtr Get64BitCode(string name, string path = "", int size = 16)
-        {
+        public UIntPtr Get64BitCode(string name, string path = "", int size = 16) {
             string theCode = "";
             if (path != "")
                 theCode = LoadCode(name, path);
@@ -1266,20 +1130,17 @@ namespace Memory
 
             if (!theCode.Contains("+") && !theCode.Contains(",")) return new UIntPtr(Convert.ToUInt64(theCode, 16));
 
-            if (newOffsets.Contains(','))
-            {
+            if (newOffsets.Contains(',')) {
                 List<Int64> offsetsList = new List<Int64>();
 
                 string[] newerOffsets = newOffsets.Split(',');
-                foreach (string oldOffsets in newerOffsets)
-                {
+                foreach (string oldOffsets in newerOffsets) {
                     string test = oldOffsets;
                     if (oldOffsets.Contains("0x")) test = oldOffsets.Replace("0x", "");
                     Int64 preParse = 0;
                     if (!oldOffsets.Contains("-"))
                         preParse = Int64.Parse(test, NumberStyles.AllowHexSpecifier);
-                    else
-                    {
+                    else {
                         test = test.Replace("-", "");
                         preParse = Int64.Parse(test, NumberStyles.AllowHexSpecifier);
                         preParse = preParse * -1;
@@ -1289,81 +1150,63 @@ namespace Memory
                 Int64[] offsets = offsetsList.ToArray();
 
                 if (theCode.Contains("base") || theCode.Contains("main"))
-                    ReadProcessMemory(pHandle, (UIntPtr)((Int64)mainModule.BaseAddress + offsets[0]), memoryAddress, (UIntPtr)size, IntPtr.Zero);
-                else if (!theCode.Contains("base") && !theCode.Contains("main") && theCode.Contains("+"))
-                {
+                    ReadProcessMemory(pHandle, (UIntPtr) ((Int64) mainModule.BaseAddress + offsets[0]), memoryAddress, (UIntPtr) size, IntPtr.Zero);
+                else if (!theCode.Contains("base") && !theCode.Contains("main") && theCode.Contains("+")) {
                     string[] moduleName = theCode.Split('+');
                     IntPtr altModule = IntPtr.Zero;
                     if (!moduleName[0].ToLower().Contains(".dll") && !moduleName[0].ToLower().Contains(".exe") && !moduleName[0].ToLower().Contains(".bin"))
-                        altModule = (IntPtr)Int64.Parse(moduleName[0], System.Globalization.NumberStyles.HexNumber);
-                    else
-                    {
-                        try
-                        {
+                        altModule = (IntPtr) Int64.Parse(moduleName[0], System.Globalization.NumberStyles.HexNumber);
+                    else {
+                        try {
                             altModule = modules[moduleName[0]];
-                        }
-                        catch
-                        {
+                        } catch {
                             Debug.WriteLine("Module " + moduleName[0] + " was not found in module list!");
                             Debug.WriteLine("Modules: " + string.Join(",", modules));
                         }
                     }
-                    ReadProcessMemory(pHandle, (UIntPtr)((Int64)altModule + offsets[0]), memoryAddress, (UIntPtr)size, IntPtr.Zero);
-                }
-                else // no offsets
-                    ReadProcessMemory(pHandle, (UIntPtr)(offsets[0]), memoryAddress, (UIntPtr)size, IntPtr.Zero);
+                    ReadProcessMemory(pHandle, (UIntPtr) ((Int64) altModule + offsets[0]), memoryAddress, (UIntPtr) size, IntPtr.Zero);
+                } else // no offsets
+                    ReadProcessMemory(pHandle, (UIntPtr) (offsets[0]), memoryAddress, (UIntPtr) size, IntPtr.Zero);
 
                 Int64 num1 = BitConverter.ToInt64(memoryAddress, 0);
 
-                UIntPtr base1 = (UIntPtr)0;
+                UIntPtr base1 = (UIntPtr) 0;
 
-                for (int i = 1; i < offsets.Length; i++)
-                {
+                for (int i = 1; i < offsets.Length; i++) {
                     base1 = new UIntPtr(Convert.ToUInt64(num1 + offsets[i]));
-                    ReadProcessMemory(pHandle, base1, memoryAddress, (UIntPtr)size, IntPtr.Zero);
+                    ReadProcessMemory(pHandle, base1, memoryAddress, (UIntPtr) size, IntPtr.Zero);
                     num1 = BitConverter.ToInt64(memoryAddress, 0);
                 }
                 return base1;
-            }
-            else
-            {
+            } else {
                 Int64 trueCode = Convert.ToInt64(newOffsets, 16);
                 IntPtr altModule = IntPtr.Zero;
                 if (theCode.Contains("base") || theCode.Contains("main"))
                     altModule = mainModule.BaseAddress;
-                else if (!theCode.Contains("base") && !theCode.Contains("main") && theCode.Contains("+"))
-                {
+                else if (!theCode.Contains("base") && !theCode.Contains("main") && theCode.Contains("+")) {
                     string[] moduleName = theCode.Split('+');
-                    if (!moduleName[0].ToLower().Contains(".dll") && !moduleName[0].ToLower().Contains(".exe") && !moduleName[0].ToLower().Contains(".bin"))
-                    {
+                    if (!moduleName[0].ToLower().Contains(".dll") && !moduleName[0].ToLower().Contains(".exe") && !moduleName[0].ToLower().Contains(".bin")) {
                         string theAddr = moduleName[0];
                         if (theAddr.Contains("0x")) theAddr = theAddr.Replace("0x", "");
-                        altModule = (IntPtr)Int64.Parse(theAddr, NumberStyles.HexNumber);
-                    }
-                    else
-                    {
-                        try
-                        {
+                        altModule = (IntPtr) Int64.Parse(theAddr, NumberStyles.HexNumber);
+                    } else {
+                        try {
                             altModule = modules[moduleName[0]];
-                        }
-                        catch
-                        {
+                        } catch {
                             Debug.WriteLine("Module " + moduleName[0] + " was not found in module list!");
                             Debug.WriteLine("Modules: " + string.Join(",", modules));
                         }
                     }
-                }
-                else
+                } else
                     altModule = modules[theCode.Split('+')[0]];
-                return (UIntPtr)((Int64)altModule + trueCode);
+                return (UIntPtr) ((Int64) altModule + trueCode);
             }
         }
 
         /// <summary>
         /// Close the process when finished.
         /// </summary>
-        public void CloseProcess()
-        {
+        public void CloseProcess() {
             if (pHandle == null)
                 return;
 
@@ -1375,12 +1218,10 @@ namespace Memory
         /// Inject a DLL file.
         /// </summary>
         /// <param name="strDllName">path and name of DLL file.</param>
-        public void InjectDll(String strDllName)
-        {
+        public void InjectDll(String strDllName) {
             IntPtr bytesout;
 
-            foreach (ProcessModule pm in theProc.Modules)
-            {
+            foreach (ProcessModule pm in theProc.Modules) {
                 if (pm.ModuleName.StartsWith("inject", StringComparison.InvariantCultureIgnoreCase))
                     return;
             }
@@ -1389,26 +1230,25 @@ namespace Memory
                 return;
 
             int lenWrite = strDllName.Length + 1;
-            UIntPtr allocMem = VirtualAllocEx(pHandle, (UIntPtr)null, (uint)lenWrite, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+            UIntPtr allocMem = VirtualAllocEx(pHandle, (UIntPtr) null, (uint) lenWrite, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 
-            WriteProcessMemory(pHandle, allocMem, strDllName, (UIntPtr)lenWrite, out bytesout);
+            WriteProcessMemory(pHandle, allocMem, strDllName, (UIntPtr) lenWrite, out bytesout);
             UIntPtr injector = GetProcAddress(GetModuleHandle("kernel32.dll"), "LoadLibraryA");
 
             if (injector == null)
                 return;
 
-            IntPtr hThread = CreateRemoteThread(pHandle, (IntPtr)null, 0, injector, allocMem, 0, out bytesout);
+            IntPtr hThread = CreateRemoteThread(pHandle, (IntPtr) null, 0, injector, allocMem, 0, out bytesout);
             if (hThread == null)
                 return;
 
             int Result = WaitForSingleObject(hThread, 10 * 1000);
-            if (Result == 0x00000080L || Result == 0x00000102L)
-            {
+            if (Result == 0x00000080L || Result == 0x00000102L) {
                 if (hThread != null)
                     CloseHandle(hThread);
                 return;
             }
-            VirtualFreeEx(pHandle, allocMem, (UIntPtr)0, 0x8000);
+            VirtualFreeEx(pHandle, allocMem, (UIntPtr) 0, 0x8000);
 
             if (hThread != null)
                 CloseHandle(hThread);
@@ -1429,8 +1269,7 @@ namespace Memory
         /// <remarks>Please ensure that you use the proper replaceCount
         /// if you replace halfway in an instruction you may cause bad things</remarks>
         /// <returns>UIntPtr to created code cave for use for later deallocation</returns>
-        public UIntPtr CreateCodeCave(string code, byte[] newBytes, int replaceCount, int size = 0x1000, string file = "")
-        {
+        public UIntPtr CreateCodeCave(string code, byte[] newBytes, int replaceCount, int size = 0x1000, string file = "") {
             if (replaceCount < 5)
                 return UIntPtr.Zero; // returning UIntPtr.Zero instead of throwing an exception
                                      // to better match existing code
@@ -1444,10 +1283,9 @@ namespace Memory
             UIntPtr caveAddress = UIntPtr.Zero;
             UIntPtr prefered = address;
 
-            for(var i = 0; i < 10 && caveAddress == UIntPtr.Zero; i++)
-            {
-                caveAddress = VirtualAllocEx(pHandle, FindFreeBlockForRegion(prefered, (uint)size),
-                                             (uint)size, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+            for (var i = 0; i < 10 && caveAddress == UIntPtr.Zero; i++) {
+                caveAddress = VirtualAllocEx(pHandle, FindFreeBlockForRegion(prefered, (uint) size),
+                                             (uint) size, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 
                 if (caveAddress == UIntPtr.Zero)
                     prefered = UIntPtr.Add(prefered, 0x10000);
@@ -1455,26 +1293,25 @@ namespace Memory
 
             // Failed to allocate memory around the address we wanted let windows handle it and hope for the best?
             if (caveAddress == UIntPtr.Zero)
-                caveAddress = VirtualAllocEx(pHandle, UIntPtr.Zero, (uint)size, MEM_COMMIT | MEM_RESERVE,
+                caveAddress = VirtualAllocEx(pHandle, UIntPtr.Zero, (uint) size, MEM_COMMIT | MEM_RESERVE,
                                              PAGE_EXECUTE_READWRITE);
 
             int nopsNeeded = replaceCount > 5 ? replaceCount - 5 : 0;
 
             // (to - from - 5)
-            int offset = (int)((long)caveAddress - (long)address - 5);
+            int offset = (int) ((long) caveAddress - (long) address - 5);
 
             byte[] jmpBytes = new byte[5 + nopsNeeded];
             jmpBytes[0] = 0xE9;
             BitConverter.GetBytes(offset).CopyTo(jmpBytes, 1);
 
-            for(var i = 5; i < jmpBytes.Length; i++)
-            {
+            for (var i = 5; i < jmpBytes.Length; i++) {
                 jmpBytes[i] = 0x90;
             }
             WriteBytes(address, jmpBytes);
 
             byte[] caveBytes = new byte[5 + newBytes.Length];
-            offset = (int)(((long)address + jmpBytes.Length) - ((long)caveAddress + newBytes.Length) - 5);
+            offset = (int) (((long) address + jmpBytes.Length) - ((long) caveAddress + newBytes.Length) - 5);
 
             newBytes.CopyTo(caveBytes, 0);
             caveBytes[newBytes.Length] = 0xE9;
@@ -1484,9 +1321,8 @@ namespace Memory
 
             return caveAddress;
         }
-        
-        private UIntPtr FindFreeBlockForRegion(UIntPtr baseAddress, uint size)
-        {
+
+        private UIntPtr FindFreeBlockForRegion(UIntPtr baseAddress, uint size) {
             UIntPtr minAddress = UIntPtr.Subtract(baseAddress, 0x70000000);
             UIntPtr maxAddress = UIntPtr.Add(baseAddress, 0x70000000);
 
@@ -1495,18 +1331,15 @@ namespace Memory
 
             GetSystemInfo(out SYSTEM_INFO si);
 
-            if (Is64Bit)
-            {
-                if ((long)minAddress > (long)si.maximumApplicationAddress ||
-                    (long)minAddress < (long)si.minimumApplicationAddress)
+            if (Is64Bit) {
+                if ((long) minAddress > (long) si.maximumApplicationAddress ||
+                    (long) minAddress < (long) si.minimumApplicationAddress)
                     minAddress = si.minimumApplicationAddress;
 
-                if ((long)maxAddress < (long)si.minimumApplicationAddress ||
-                    (long)maxAddress > (long)si.maximumApplicationAddress)
+                if ((long) maxAddress < (long) si.minimumApplicationAddress ||
+                    (long) maxAddress > (long) si.maximumApplicationAddress)
                     maxAddress = si.maximumApplicationAddress;
-            }
-            else
-            {
+            } else {
                 minAddress = si.minimumApplicationAddress;
                 maxAddress = si.maximumApplicationAddress;
             }
@@ -1516,61 +1349,54 @@ namespace Memory
             UIntPtr current = minAddress;
             UIntPtr previous = current;
 
-            while (VirtualQueryEx(pHandle, current, out mbi).ToUInt64() != 0)
-            {
-                if ((long)mbi.BaseAddress > (long)maxAddress)
+            while (VirtualQueryEx(pHandle, current, out mbi).ToUInt64() != 0) {
+                if ((long) mbi.BaseAddress > (long) maxAddress)
                     return UIntPtr.Zero;  // No memory found, let windows handle
 
-                if (mbi.State == MEM_FREE && mbi.RegionSize > size)
-                {
-                    if ((long)mbi.BaseAddress % si.allocationGranularity > 0)
-                    {
+                if (mbi.State == MEM_FREE && mbi.RegionSize > size) {
+                    if ((long) mbi.BaseAddress % si.allocationGranularity > 0) {
                         // The whole size can not be used
                         tmpAddress = mbi.BaseAddress;
-                        int offset = (int)(si.allocationGranularity -
-                                           ((long)tmpAddress % si.allocationGranularity));
+                        int offset = (int) (si.allocationGranularity -
+                                           ((long) tmpAddress % si.allocationGranularity));
 
                         // Check if there is enough left
-                        if((mbi.RegionSize - offset) >= size)
-                        {
+                        if ((mbi.RegionSize - offset) >= size) {
                             // yup there is enough
                             tmpAddress = UIntPtr.Add(tmpAddress, offset);
 
-                            if((long)tmpAddress < (long)baseAddress)
-                            {
-                                tmpAddress = UIntPtr.Add(tmpAddress, (int)(mbi.RegionSize - offset - size));
+                            if ((long) tmpAddress < (long) baseAddress) {
+                                tmpAddress = UIntPtr.Add(tmpAddress, (int) (mbi.RegionSize - offset - size));
 
-                                if ((long)tmpAddress > (long)baseAddress)
+                                if ((long) tmpAddress > (long) baseAddress)
                                     tmpAddress = baseAddress;
 
                                 // decrease tmpAddress until its alligned properly
-                                tmpAddress = UIntPtr.Subtract(tmpAddress, (int)((long)tmpAddress % si.allocationGranularity));
+                                tmpAddress = UIntPtr.Subtract(tmpAddress, (int) ((long) tmpAddress % si.allocationGranularity));
                             }
 
                             // if the difference is closer then use that
-                            if (Math.Abs((long)tmpAddress - (long)baseAddress) < Math.Abs((long)ret - (long)baseAddress))
+                            if (Math.Abs((long) tmpAddress - (long) baseAddress) < Math.Abs((long) ret - (long) baseAddress))
                                 ret = tmpAddress;
                         }
-                    }
-                    else
-                    {
+                    } else {
                         tmpAddress = mbi.BaseAddress;
 
-                        if((long)tmpAddress < (long)baseAddress) // try to get it the cloest possible 
-                                                                 // (so to the end of the region - size and
-                                                                 // aligned by system allocation granularity)
+                        if ((long) tmpAddress < (long) baseAddress) // try to get it the cloest possible 
+                                                                    // (so to the end of the region - size and
+                                                                    // aligned by system allocation granularity)
                         {
-                            tmpAddress = UIntPtr.Add(tmpAddress, (int)(mbi.RegionSize - size));
+                            tmpAddress = UIntPtr.Add(tmpAddress, (int) (mbi.RegionSize - size));
 
-                            if ((long)tmpAddress > (long)baseAddress)
+                            if ((long) tmpAddress > (long) baseAddress)
                                 tmpAddress = baseAddress;
 
                             // decrease until aligned properly
                             tmpAddress =
-                                UIntPtr.Subtract(tmpAddress, (int)((long)tmpAddress % si.allocationGranularity));
+                                UIntPtr.Subtract(tmpAddress, (int) ((long) tmpAddress % si.allocationGranularity));
                         }
 
-                        if (Math.Abs((long)tmpAddress - (long)baseAddress) < Math.Abs((long)ret - (long)baseAddress))
+                        if (Math.Abs((long) tmpAddress - (long) baseAddress) < Math.Abs((long) ret - (long) baseAddress))
                             ret = tmpAddress;
                     }
                 }
@@ -1579,12 +1405,12 @@ namespace Memory
                     mbi.RegionSize += si.allocationGranularity - (mbi.RegionSize % si.allocationGranularity);
 
                 previous = current;
-                current = UIntPtr.Add(mbi.BaseAddress, (int)mbi.RegionSize);
+                current = UIntPtr.Add(mbi.BaseAddress, (int) mbi.RegionSize);
 
-                if ((long)current > (long)maxAddress)
+                if ((long) current > (long) maxAddress)
                     return ret;
 
-                if ((long)previous > (long)current)
+                if ((long) previous > (long) current)
                     return ret; // Overflow
             }
 
@@ -1593,8 +1419,7 @@ namespace Memory
 #endif
 
         [Flags]
-        public enum ThreadAccess : int
-        {
+        public enum ThreadAccess : int {
             TERMINATE = (0x0001),
             SUSPEND_RESUME = (0x0002),
             GET_CONTEXT = (0x0008),
@@ -1606,16 +1431,14 @@ namespace Memory
             DIRECT_IMPERSONATION = (0x0200)
         }
 
-        public static void SuspendProcess(int pid)
-        {
+        public static void SuspendProcess(int pid) {
             var process = Process.GetProcessById(pid);
 
             if (process.ProcessName == string.Empty)
                 return;
 
-            foreach (ProcessThread pT in process.Threads)
-            {
-                IntPtr pOpenThread = OpenThread(ThreadAccess.SUSPEND_RESUME, false, (uint)pT.Id);
+            foreach (ProcessThread pT in process.Threads) {
+                IntPtr pOpenThread = OpenThread(ThreadAccess.SUSPEND_RESUME, false, (uint) pT.Id);
                 if (pOpenThread == IntPtr.Zero)
                     continue;
 
@@ -1624,21 +1447,18 @@ namespace Memory
             }
         }
 
-        public static void ResumeProcess(int pid)
-        {
+        public static void ResumeProcess(int pid) {
             var process = Process.GetProcessById(pid);
             if (process.ProcessName == string.Empty)
                 return;
 
-            foreach (ProcessThread pT in process.Threads)
-            {
-                IntPtr pOpenThread = OpenThread(ThreadAccess.SUSPEND_RESUME, false, (uint)pT.Id);
+            foreach (ProcessThread pT in process.Threads) {
+                IntPtr pOpenThread = OpenThread(ThreadAccess.SUSPEND_RESUME, false, (uint) pT.Id);
                 if (pOpenThread == IntPtr.Zero)
                     continue;
 
                 var suspendCount = 0;
-                do
-                {
+                do {
                     suspendCount = ResumeThread(pOpenThread);
                 } while (suspendCount > 0);
                 CloseHandle(pOpenThread);
@@ -1647,16 +1467,13 @@ namespace Memory
 
 #if WINXP
 #else
-        async Task PutTaskDelay(int delay)
-        {
+        async Task PutTaskDelay(int delay) {
             await Task.Delay(delay);
         }
 #endif
 
-        void AppendAllBytes(string path, byte[] bytes)
-        {
-            using (var stream = new FileStream(path, FileMode.Append))
-            {
+        void AppendAllBytes(string path, byte[] bytes) {
+            using (var stream = new FileStream(path, FileMode.Append)) {
                 stream.Write(bytes, 0, bytes.Length);
             }
         }
@@ -1668,8 +1485,7 @@ namespace Memory
             return newArray;
         }
 
-        public string MSize()
-        {
+        public string MSize() {
             if (Is64Bit)
                 return ("x16");
             else
@@ -1681,29 +1497,23 @@ namespace Memory
         /// </summary>
         /// <param name="ba">your byte array to convert</param>
         /// <returns></returns>
-        public static string ByteArrayToHexString(byte[] ba)
-        {
+        public static string ByteArrayToHexString(byte[] ba) {
             StringBuilder hex = new StringBuilder(ba.Length * 2);
             int i = 1;
-            foreach (byte b in ba)
-            {
-                if (i == 16)
-                {
+            foreach (byte b in ba) {
+                if (i == 16) {
                     hex.AppendFormat("{0:x2}{1}", b, Environment.NewLine);
                     i = 0;
-                }
-                else
+                } else
                     hex.AppendFormat("{0:x2} ", b);
                 i++;
             }
             return hex.ToString().ToUpper();
         }
 
-        public static string ByteArrayToString(byte[] ba)
-        {
+        public static string ByteArrayToString(byte[] ba) {
             StringBuilder hex = new StringBuilder(ba.Length * 2);
-            foreach (byte b in ba)
-            {
+            foreach (byte b in ba) {
                 hex.AppendFormat("{0:x2} ", b);
             }
             return hex.ToString();
@@ -1712,8 +1522,7 @@ namespace Memory
 #if WINXP
 #else
 
-        public struct SYSTEM_INFO
-        {
+        public struct SYSTEM_INFO {
             public ushort processorArchitecture;
             ushort reserved;
             public uint pageSize;
@@ -1727,8 +1536,7 @@ namespace Memory
             public ushort processorRevision;
         }
 
-        public struct MEMORY_BASIC_INFORMATION32
-        {
+        public struct MEMORY_BASIC_INFORMATION32 {
             public UIntPtr BaseAddress;
             public UIntPtr AllocationBase;
             public uint AllocationProtect;
@@ -1738,8 +1546,7 @@ namespace Memory
             public uint Type;
         }
 
-        public struct MEMORY_BASIC_INFORMATION64
-        {
+        public struct MEMORY_BASIC_INFORMATION64 {
             public UIntPtr BaseAddress;
             public UIntPtr AllocationBase;
             public uint AllocationProtect;
@@ -1751,8 +1558,7 @@ namespace Memory
             public uint __alignment2;
         }
 
-        public struct MEMORY_BASIC_INFORMATION
-        {
+        public struct MEMORY_BASIC_INFORMATION {
             public UIntPtr BaseAddress;
             public UIntPtr AllocationBase;
             public uint AllocationProtect;
@@ -1762,18 +1568,16 @@ namespace Memory
             public uint Type;
         }
 
-        public ulong GetMinAddress()
-        {
+        public ulong GetMinAddress() {
             SYSTEM_INFO SI;
             GetSystemInfo(out SI);
-            return (ulong)SI.minimumApplicationAddress;
+            return (ulong) SI.minimumApplicationAddress;
         }
 
         /// <summary>
         /// Dump memory page by page to a dump.dmp file. Can be used with Cheat Engine.
         /// </summary>
-        public bool DumpMemory(string file = "dump.dmp")
-        {
+        public bool DumpMemory(string file = "dump.dmp") {
             Debug.Write("[DEBUG] memory dump starting... (" + DateTime.Now.ToString("h:mm:ss tt") + ")" + Environment.NewLine);
             SYSTEM_INFO sys_info = new SYSTEM_INFO();
             GetSystemInfo(out sys_info);
@@ -1782,8 +1586,8 @@ namespace Memory
             UIntPtr proc_max_address = sys_info.maximumApplicationAddress;
 
             // saving the values as long ints so I won't have to do a lot of casts later
-            Int64 proc_min_address_l = (Int64)proc_min_address; //(Int64)procs.MainModule.BaseAddress;
-            Int64 proc_max_address_l = (Int64)theProc.VirtualMemorySize64 + proc_min_address_l;
+            Int64 proc_min_address_l = (Int64) proc_min_address; //(Int64)procs.MainModule.BaseAddress;
+            Int64 proc_max_address_l = (Int64) theProc.VirtualMemorySize64 + proc_min_address_l;
 
             //int arrLength = 0;
             if (File.Exists(file))
@@ -1791,20 +1595,19 @@ namespace Memory
 
 
             MEMORY_BASIC_INFORMATION memInfo = new MEMORY_BASIC_INFORMATION();
-            while (proc_min_address_l < proc_max_address_l)
-            {
+            while (proc_min_address_l < proc_max_address_l) {
                 VirtualQueryEx(pHandle, proc_min_address, out memInfo);
-                byte[] buffer = new byte[(Int64)memInfo.RegionSize];
-                UIntPtr test = (UIntPtr)((Int64)memInfo.RegionSize);
-                UIntPtr test2 = (UIntPtr)((Int64)memInfo.BaseAddress);
+                byte[] buffer = new byte[(Int64) memInfo.RegionSize];
+                UIntPtr test = (UIntPtr) ((Int64) memInfo.RegionSize);
+                UIntPtr test2 = (UIntPtr) ((Int64) memInfo.BaseAddress);
 
                 ReadProcessMemory(pHandle, test2, buffer, test, IntPtr.Zero);
 
                 AppendAllBytes(file, buffer); //due to memory limits, we have to dump it then store it in an array.
                 //arrLength += buffer.Length;
 
-                proc_min_address_l += (Int64)memInfo.RegionSize;
-                proc_min_address = new UIntPtr((ulong)proc_min_address_l);
+                proc_min_address_l += (Int64) memInfo.RegionSize;
+                proc_min_address = new UIntPtr((ulong) proc_min_address_l);
             }
 
 
@@ -1820,8 +1623,7 @@ namespace Memory
         /// <param name="executable">Include executable addresses in scan</param>
         /// <param name="file">ini file (OPTIONAL)</param>
         /// <returns>IEnumerable of all addresses found.</returns>
-        public Task<IEnumerable<long>> AoBScan(string search, bool writable = false, bool executable = true, string file = "")
-        {
+        public Task<IEnumerable<long>> AoBScan(string search, bool writable = false, bool executable = true, string file = "") {
             return AoBScan(0, long.MaxValue, search, writable, executable, file);
         }
 
@@ -1834,8 +1636,7 @@ namespace Memory
         /// <param name="executable">Include executable addresses in scan</param>
         /// <param name="file">ini file (OPTIONAL)</param>
         /// <returns>IEnumerable of all addresses found.</returns>
-        public Task<IEnumerable<long>> AoBScan(string search, bool readable, bool writable, bool executable, string file = "")
-        {
+        public Task<IEnumerable<long>> AoBScan(string search, bool readable, bool writable, bool executable, string file = "") {
             return AoBScan(0, long.MaxValue, search, readable, writable, executable, file);
         }
 
@@ -1850,8 +1651,7 @@ namespace Memory
         /// <param name="writable">Include writable addresses in scan</param>
         /// <param name="executable">Include executable addresses in scan</param>
         /// <returns>IEnumerable of all addresses found.</returns>
-        public Task<IEnumerable<long>> AoBScan(long start, long end, string search, bool writable = false, bool executable = true, string file = "")
-        {
+        public Task<IEnumerable<long>> AoBScan(long start, long end, string search, bool writable = false, bool executable = true, string file = "") {
             // Not including read only memory was scan behavior prior.
             return AoBScan(start, end, search, false, writable, executable, file);
         }
@@ -1867,10 +1667,8 @@ namespace Memory
         /// <param name="writable">Include writable addresses in scan</param>
         /// <param name="executable">Include executable addresses in scan</param>
         /// <returns>IEnumerable of all addresses found.</returns>
-        public Task<IEnumerable<long>> AoBScan(long start, long end, string search, bool readable, bool writable, bool executable, string file = "")
-        {
-            return Task.Run(() =>
-            {
+        public Task<IEnumerable<long>> AoBScan(long start, long end, string search, bool readable, bool writable, bool executable, string file = "") {
+            return Task.Run(() => {
                 var memRegionList = new List<MemoryRegionResult>();
 
                 string memCode = LoadCode(search, file);
@@ -1880,32 +1678,25 @@ namespace Memory
                 byte[] aobPattern = new byte[stringByteArray.Length];
                 byte[] mask = new byte[stringByteArray.Length];
 
-                for (var i = 0; i < stringByteArray.Length; i++)
-                {
+                for (var i = 0; i < stringByteArray.Length; i++) {
                     string ba = stringByteArray[i];
 
-                    if (ba == "??" || (ba.Length == 1 && ba == "?"))
-                    {
+                    if (ba == "??" || (ba.Length == 1 && ba == "?")) {
                         mask[i] = 0x00;
                         stringByteArray[i] = "0x00";
-                    }
-                    else if (Char.IsLetterOrDigit(ba[0]) && ba[1] == '?')
-                    {
+                    } else if (Char.IsLetterOrDigit(ba[0]) && ba[1] == '?') {
                         mask[i] = 0xF0;
                         stringByteArray[i] = ba[0] + "0";
-                    }
-                    else if (Char.IsLetterOrDigit(ba[1]) && ba[0] == '?')
-                    {
+                    } else if (Char.IsLetterOrDigit(ba[1]) && ba[0] == '?') {
                         mask[i] = 0x0F;
                         stringByteArray[i] = "0" + ba[1];
-                    }
-                    else
+                    } else
                         mask[i] = 0xFF;
                 }
 
 
                 for (int i = 0; i < stringByteArray.Length; i++)
-                    aobPattern[i] = (byte)(Convert.ToByte(stringByteArray[i], 16) & mask[i]);
+                    aobPattern[i] = (byte) (Convert.ToByte(stringByteArray[i], 16) & mask[i]);
 
                 SYSTEM_INFO sys_info = new SYSTEM_INFO();
                 GetSystemInfo(out sys_info);
@@ -1913,24 +1704,23 @@ namespace Memory
                 UIntPtr proc_min_address = sys_info.minimumApplicationAddress;
                 UIntPtr proc_max_address = sys_info.maximumApplicationAddress;
 
-                if (start < (long)proc_min_address.ToUInt64())
-                    start = (long)proc_min_address.ToUInt64();
+                if (start < (long) proc_min_address.ToUInt64())
+                    start = (long) proc_min_address.ToUInt64();
 
-                if (end > (long)proc_max_address.ToUInt64())
-                    end = (long)proc_max_address.ToUInt64();
+                if (end > (long) proc_max_address.ToUInt64())
+                    end = (long) proc_max_address.ToUInt64();
 
                 Debug.WriteLine("[DEBUG] memory scan starting... (start:0x" + start.ToString(MSize()) + " end:0x" + end.ToString(MSize()) + " time:" + DateTime.Now.ToString("h:mm:ss tt") + ")");
-                UIntPtr currentBaseAddress = new UIntPtr((ulong)start);
+                UIntPtr currentBaseAddress = new UIntPtr((ulong) start);
 
                 MEMORY_BASIC_INFORMATION memInfo = new MEMORY_BASIC_INFORMATION();
 
                 //Debug.WriteLine("[DEBUG] start:0x" + start.ToString("X8") + " curBase:0x" + currentBaseAddress.ToUInt64().ToString("X8") + " end:0x" + end.ToString("X8") + " size:0x" + memInfo.RegionSize.ToString("X8") + " vAloc:" + VirtualQueryEx(pHandle, currentBaseAddress, out memInfo).ToUInt64().ToString());
 
                 while (VirtualQueryEx(pHandle, currentBaseAddress, out memInfo).ToUInt64() != 0 &&
-                       currentBaseAddress.ToUInt64() < (ulong)end &&
-                       currentBaseAddress.ToUInt64() + (ulong)memInfo.RegionSize >
-                       currentBaseAddress.ToUInt64())
-                {
+                       currentBaseAddress.ToUInt64() < (ulong) end &&
+                       currentBaseAddress.ToUInt64() + (ulong) memInfo.RegionSize >
+                       currentBaseAddress.ToUInt64()) {
                     /*bool isValid = memInfo.State == MEM_COMMIT;
                     isValid &= memInfo.BaseAddress.ToUInt64() < (ulong)proc_max_address.ToUInt64();
                     isValid &= ((memInfo.Protect & PAGE_GUARD) == 0);
@@ -1964,25 +1754,21 @@ namespace Memory
                         continue;
                     }*/
 
-                    MemoryRegionResult memRegion = new MemoryRegionResult
-                    {
+                    MemoryRegionResult memRegion = new MemoryRegionResult {
                         CurrentBaseAddress = currentBaseAddress,
                         RegionSize = memInfo.RegionSize,
                         RegionBase = memInfo.BaseAddress
                     };
 
-                    currentBaseAddress = new UIntPtr(memInfo.BaseAddress.ToUInt64() + (ulong)memInfo.RegionSize);
+                    currentBaseAddress = new UIntPtr(memInfo.BaseAddress.ToUInt64() + (ulong) memInfo.RegionSize);
 
                     //Console.WriteLine("SCAN start:" + memRegion.RegionBase.ToString() + " end:" + currentBaseAddress.ToString());
 
-                    if (memRegionList.Count > 0)
-                    {
+                    if (memRegionList.Count > 0) {
                         var previousRegion = memRegionList[memRegionList.Count - 1];
 
-                        if ((long)previousRegion.RegionBase + previousRegion.RegionSize == (long)memInfo.BaseAddress)
-                        {
-                            memRegionList[memRegionList.Count - 1] = new MemoryRegionResult
-                            {
+                        if ((long) previousRegion.RegionBase + previousRegion.RegionSize == (long) memInfo.BaseAddress) {
+                            memRegionList[memRegionList.Count - 1] = new MemoryRegionResult {
                                 CurrentBaseAddress = previousRegion.CurrentBaseAddress,
                                 RegionBase = previousRegion.RegionBase,
                                 RegionSize = previousRegion.RegionSize + memInfo.RegionSize
@@ -1998,8 +1784,7 @@ namespace Memory
                 ConcurrentBag<long> bagResult = new ConcurrentBag<long>();
 
                 Parallel.ForEach(memRegionList,
-                                 (item, parallelLoopState, index) =>
-                                 {
+                                 (item, parallelLoopState, index) => {
                                      long[] compareResults = CompareScan(item, aobPattern, mask);
 
                                      foreach (long result in compareResults)
@@ -2020,30 +1805,26 @@ namespace Memory
         /// <param name="search">array of bytes to search for or your ini code label</param>
         /// <param name="file">ini file</param>
         /// <returns>First address found</returns>
-        public async Task<long> AoBScan(string code, long end, string search, string file ="")
-        {
-            long start = (long)GetCode(code, file).ToUInt64();
+        public async Task<long> AoBScan(string code, long end, string search, string file = "") {
+            long start = (long) GetCode(code, file).ToUInt64();
 
-            return  (await AoBScan(start, end, search, true, true, true, file)).FirstOrDefault();
+            return (await AoBScan(start, end, search, true, true, true, file)).FirstOrDefault();
         }
 
-        private long[] CompareScan(MemoryRegionResult item, byte[] aobPattern, byte[] mask)
-        {
+        private long[] CompareScan(MemoryRegionResult item, byte[] aobPattern, byte[] mask) {
             if (mask.Length != aobPattern.Length)
                 throw new ArgumentException($"{nameof(aobPattern)}.Length != {nameof(mask)}.Length");
 
-            IntPtr buffer = Marshal.AllocHGlobal((int)item.RegionSize);
+            IntPtr buffer = Marshal.AllocCoTaskMem((int) item.RegionSize);
 
-            ReadProcessMemory(pHandle, item.CurrentBaseAddress, buffer, (UIntPtr)item.RegionSize, out ulong bytesRead);
+            ReadProcessMemory(pHandle, item.CurrentBaseAddress, buffer, (UIntPtr) item.RegionSize, out ulong bytesRead);
 
             int result = 0 - aobPattern.Length;
             List<long> ret = new List<long>();
-            unsafe
-            {
-                do
-                {
+            unsafe {
+                do {
 
-                    result = FindPattern((byte*)buffer.ToPointer(), (int)bytesRead, aobPattern, mask, result + aobPattern.Length);
+                    result = FindPattern((byte*) buffer.ToPointer(), (int) bytesRead, aobPattern, mask, result + aobPattern.Length);
 
                     if (result >= 0)
                         ret.Add((long) item.CurrentBaseAddress + result);
@@ -2051,25 +1832,21 @@ namespace Memory
                 } while (result != -1);
             }
 
-            Marshal.FreeHGlobal(buffer);
+            Marshal.FreeCoTaskMem(buffer);
 
             return ret.ToArray();
         }
 
-        private int FindPattern(byte[] body, byte[] pattern, byte[] masks, int start = 0)
-        {
+        private int FindPattern(byte[] body, byte[] pattern, byte[] masks, int start = 0) {
             int foundIndex = -1;
 
             if (body.Length <= 0 || pattern.Length <= 0 || start > body.Length - pattern.Length ||
                 pattern.Length > body.Length) return foundIndex;
 
-            for (int index = start; index <= body.Length - pattern.Length; index++)
-            {
-                if (((body[index] & masks[0]) == (pattern[0] & masks[0])))
-                {
+            for (int index = start; index <= body.Length - pattern.Length; index++) {
+                if (((body[index] & masks[0]) == (pattern[0] & masks[0]))) {
                     var match = true;
-                    for (int index2 = 1; index2 <= pattern.Length - 1; index2++)
-                    {
+                    for (int index2 = 1; index2 <= pattern.Length - 1; index2++) {
                         if ((body[index + index2] & masks[index2]) == (pattern[index2] & masks[index2])) continue;
                         match = false;
                         break;
@@ -2086,20 +1863,16 @@ namespace Memory
             return foundIndex;
         }
 
-        private unsafe int FindPattern(byte* body, int bodyLength, byte[] pattern, byte[] masks, int start = 0)
-        {
+        private unsafe int FindPattern(byte* body, int bodyLength, byte[] pattern, byte[] masks, int start = 0) {
             int foundIndex = -1;
 
             if (bodyLength <= 0 || pattern.Length <= 0 || start > bodyLength - pattern.Length ||
                 pattern.Length > bodyLength) return foundIndex;
 
-            for (int index = start; index <= bodyLength - pattern.Length; index++)
-            {
-                if (((body[index] & masks[0]) == (pattern[0] & masks[0])))
-                {
+            for (int index = start; index <= bodyLength - pattern.Length; index++) {
+                if (((body[index] & masks[0]) == (pattern[0] & masks[0]))) {
                     var match = true;
-                    for (int index2 = 1; index2 <= pattern.Length - 1; index2++)
-                    {
+                    for (int index2 = 1; index2 <= pattern.Length - 1; index2++) {
                         if ((body[index + index2] & masks[index2]) == (pattern[index2] & masks[index2])) continue;
                         match = false;
                         break;
